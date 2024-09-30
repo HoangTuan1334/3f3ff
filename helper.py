@@ -5,9 +5,11 @@ import numpy as np
 from PIL import Image
 import av
 import cv2
-from pytube import YouTube
+from pytubefix import YouTube
+import os
 
 import settings
+import helper
 
 
 def load_model(model_path):
@@ -49,7 +51,7 @@ def _display_detected_frames(conf, model, st_frame, image, is_display_tracking=N
     """
 
     # Resize the image to a standard size
-    image = cv2.resize(image, (720, int(720*(9/16))))
+    image = cv2.resize(image, (720, int(720 * (9 / 16))))
 
     # Display object tracking, if specified
     if is_display_tracking:
@@ -58,7 +60,7 @@ def _display_detected_frames(conf, model, st_frame, image, is_display_tracking=N
         # Predict the objects in the image using the YOLOv8 model
         res = model.predict(image, conf=conf)
 
-    # # Plot the detected objects on the video frame
+    # Plot the detected objects on the video frame
     res_plotted = res[0].plot()
     st_frame.image(res_plotted,
                    caption='Detected Video',
@@ -69,7 +71,7 @@ def _display_detected_frames(conf, model, st_frame, image, is_display_tracking=N
 
 def play_youtube_video(conf, model):
     """
-    Plays a webcam stream. Detects Objects in real-time using the YOLOv8 object detection model.
+    Plays a YouTube video and detects objects in real-time using the YOLOv8 object detection model.
 
     Parameters:
         conf: Confidence of YOLOv8 model.
@@ -81,37 +83,69 @@ def play_youtube_video(conf, model):
     Raises:
         None
     """
-    source_youtube = st.sidebar.text_input("YouTube Video url")
+    source_youtube = st.sidebar.text_input("YouTube Video URL")
 
     is_display_tracker, tracker = display_tracker_options()
 
     if st.sidebar.button('Detect Objects'):
         try:
+            # Check if the URL is valid
+            if "youtube.com/watch" not in source_youtube and "youtu.be" not in source_youtube:
+                st.sidebar.error("Invalid YouTube URL. Please provide a correct URL.")
+                return
+
+            # Start downloading video
+            st.sidebar.info("Starting to download video from YouTube...")
+
             yt = YouTube(source_youtube)
-            stream = yt.streams.filter(file_extension="mp4", res=720).first()
-            vid_cap = cv2.VideoCapture(stream.url)
+            
+            # Get the progressive streams with mp4 format
+            streams = yt.streams.filter(progressive=True, file_extension="mp4")
+            
+            # Log all available streams for debugging
+            st.sidebar.info(f"Available streams: {[str(s) for s in streams]}")
+
+            # Choose the highest resolution stream
+            stream = streams.order_by('resolution').desc().first()
+
+            # Check if the stream is available
+            if stream is None:
+                st.sidebar.error("No suitable stream found. Please try a different video or resolution.")
+                return
+
+            st.sidebar.info(f"Stream URL: {stream.url}")  # Check stream URL
+
+            # Download video to a temporary location
+            video_path = stream.download(output_path="videos", filename="youtube_video.mp4")
+
+            # Video download success
+            st.sidebar.success("Video downloaded successfully!")
+
+            # Read video using OpenCV
+            st.sidebar.info("Loading video for detection...")
+            vid_cap = cv2.VideoCapture(video_path)
 
             st_frame = st.empty()
             while (vid_cap.isOpened()):
                 success, image = vid_cap.read()
                 if success:
-                    _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker
-                                             )
+                    _display_detected_frames(conf, model, st_frame, image, is_display_tracker, tracker)
                 else:
                     vid_cap.release()
                     break
+            
+            # Remove video after processing
+            os.remove(video_path)
+            st.sidebar.success("Video processing completed and file removed.")
+
         except Exception as e:
             st.sidebar.error("Error loading video: " + str(e))
 
 
+
 def play_rtsp_stream(conf, model):
     """
-    Plays an rtsp stream. Detects Objects in real-time using the YOLOv8 object detection model.
+    Plays an RTSP stream. Detects Objects in real-time using the YOLOv8 object detection model.
 
     Parameters:
         conf: Confidence of YOLOv8 model.
@@ -119,11 +153,8 @@ def play_rtsp_stream(conf, model):
 
     Returns:
         None
-
-    Raises:
-        None
     """
-    source_rtsp = st.sidebar.text_input("rtsp stream url")
+    source_rtsp = st.sidebar.text_input("RTSP stream URL")
     is_display_tracker, tracker = display_tracker_options()
     if st.sidebar.button('Detect Objects'):
         try:
@@ -132,13 +163,7 @@ def play_rtsp_stream(conf, model):
             while (vid_cap.isOpened()):
                 success, image = vid_cap.read()
                 if success:
-                    _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker
-                                             )
+                    _display_detected_frames(conf, model, st_frame, image, is_display_tracker, tracker)
                 else:
                     vid_cap.release()
                     break
@@ -146,16 +171,11 @@ def play_rtsp_stream(conf, model):
             st.sidebar.error("Error loading RTSP stream: " + str(e))
 
 
-
-
 def play_webcam(conf, model):
     """
     Plays a webcam stream. Detects Objects in real-time using the YOLO object detection model.
 
     Returns:
-        None
-
-    Raises:
         None
     """
     st.sidebar.title("Webcam Object Detection")
@@ -166,6 +186,7 @@ def play_webcam(conf, model):
         rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
         media_stream_constraints={"video": True, "audio": False},
     )
+
 
 class MyVideoTransformer(VideoTransformerBase):
     def __init__(self, conf, model):
@@ -193,50 +214,3 @@ class MyVideoTransformer(VideoTransformerBase):
             return res_plotted
 
         return input
-
-
-
-def play_stored_video(conf, model):
-    """
-    Plays a stored video file. Tracks and detects objects in real-time using the YOLOv8 object detection model.
-
-    Parameters:
-        conf: Confidence of YOLOv8 model.
-        model: An instance of the `YOLOv8` class containing the YOLOv8 model.
-
-    Returns:
-        None
-
-    Raises:
-        None
-    """
-    source_vid = st.sidebar.selectbox(
-        "Choose a video...", settings.VIDEOS_DICT.keys())
-
-    is_display_tracker, tracker = display_tracker_options()
-
-    with open(settings.VIDEOS_DICT.get(source_vid), 'rb') as video_file:
-        video_bytes = video_file.read()
-    if video_bytes:
-        st.video(video_bytes)
-
-    if st.sidebar.button('Detect Video Objects'):
-        try:
-            vid_cap = cv2.VideoCapture(
-                str(settings.VIDEOS_DICT.get(source_vid)))
-            st_frame = st.empty()
-            while (vid_cap.isOpened()):
-                success, image = vid_cap.read()
-                if success:
-                    _display_detected_frames(conf,
-                                             model,
-                                             st_frame,
-                                             image,
-                                             is_display_tracker,
-                                             tracker
-                                             )
-                else:
-                    vid_cap.release()
-                    break
-        except Exception as e:
-            st.sidebar.error("Error loading video: " + str(e))
