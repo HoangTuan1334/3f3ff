@@ -1,71 +1,98 @@
-# Import required libraries
+# Python In-built packages
+from pathlib import Path
 import PIL
 
+# External packages
 import streamlit as st
-from ultralytics import YOLO
 
-# Replace the relative path to your weight file
+# Local Modules
+import settings
+import helper
+
 model_path = 'best.pt'
-
 # Setting page layout
 st.set_page_config(
-    page_title="Object Detection",  # Setting page title
-    page_icon="🤖",     # Setting page icon
-    layout="wide",      # Setting layout to wide
-    initial_sidebar_state="expanded",    # Expanding sidebar by default
-    
+    page_title="Object Detection using YOLOv8",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Creating sidebar
-with st.sidebar:
-    st.header("Image Config")     # Adding header to sidebar
-    # Adding file uploader to sidebar for selecting images
-    source_img = st.file_uploader(
-        "Upload an image...", type=("jpg", "jpeg", "png", 'bmp', 'webp'))
-
-    # Model Options
-    confidence = float(st.slider(
-        "Select Model Confidence", 25, 100, 40)) / 100
-
-# Creating main page heading
+# Main page heading
 st.title("Object Detection")
-st.caption('Updload a photo with this :blue[hand signals]: :+1:, :hand:, :i_love_you_hand_sign:, and :spock-hand:.')
-st.caption('Then click the :blue[Detect Objects] button and check the result.')
-# Creating two columns on the main page
-col1, col2 = st.columns(2)
+st.markdown('Updload a photo, select a video, open webcam or paste a url from Youtube with this hand signals: :+1:, :hand:, :i_love_you_hand_sign:, and :spock-hand:.')
+st.markdown('Then click the Detect Objects button and check the result.')
 
-# Adding image to the first column if image is uploaded
-with col1:
-    if source_img:
-        # Opening the uploaded image
-        uploaded_image = PIL.Image.open(source_img)
-        # Adding the uploaded image to the page with a caption
-        st.image(source_img,
-                 caption="Uploaded Image",
-                 use_column_width=True
-                 )
+# Sidebar
+st.sidebar.header("ML Model Config")
 
+# Model Options
+model_type = st.sidebar.radio(
+    "Select Task", ['Detection', 'Segmentation'])
+
+confidence = float(st.sidebar.slider(
+    "Select Model Confidence", 25, 100, 40)) / 100
+
+# Selecting Detection Or Segmentation
+if model_type == 'Detection':
+    model_path = Path(settings.DETECTION_MODEL)
+elif model_type == 'Segmentation':
+    model_path = Path(settings.SEGMENTATION_MODEL)
+
+# Load Pre-trained ML Model
 try:
-    model = YOLO(model_path)
+    model = helper.load_model(model_path)
 except Exception as ex:
-    st.error(
-        f"Unable to load model. Check the specified path: {model_path}")
+    st.error(f"Unable to load model. Check the specified path: {model_path}")
     st.error(ex)
 
-if st.sidebar.button('Detect Objects'):
-    res = model.predict(uploaded_image,
-                        conf=confidence
-                        )
-    boxes = res[0].boxes
-    res_plotted = res[0].plot()[:, :, ::-1]
-    with col2:
-        st.image(res_plotted,
-                 caption='Detected Image',
-                 use_column_width=True
-                 )
+st.sidebar.header("Image/Video Config")
+source_radio = st.sidebar.radio(
+    "Select Source", settings.SOURCES_LIST)
+
+source_img = None
+# If image is selected
+if source_radio == settings.IMAGE:
+    source_img = st.sidebar.file_uploader(
+        "Choose an image...", type=("jpg", "jpeg", "png", 'bmp', 'webp'))
+
+    col1, col2 = st.columns(2)
+
+    with col1:
         try:
-            with st.expander("Detection Results"):
-                for box in boxes:
-                    st.write(box.xywh)
+            if source_img:
+                uploaded_image = PIL.Image.open(source_img)
+                st.image(source_img, caption="Uploaded Image",
+                         use_column_width=True)
         except Exception as ex:
-            st.write("No image is uploaded yet!")
+            st.error("Error occurred while opening the image.")
+            st.error(ex)
+
+    with col2:        
+            if st.sidebar.button('Detect Objects'):
+                res = model.predict(uploaded_image,
+                                    conf=confidence
+                                    )
+                boxes = res[0].boxes
+                res_plotted = res[0].plot()[:, :, ::-1]
+                st.image(res_plotted, caption='Detected Image',
+                         use_column_width=True)
+                try:
+                    with st.expander("Detection Results"):
+                        for box in boxes:
+                            st.write(box.data)
+                except Exception as ex:
+                    # st.write(ex)
+                    st.write("No image is uploaded yet!")
+
+elif source_radio == settings.VIDEO:
+    helper.play_stored_video(confidence, model)
+
+elif source_radio == settings.WEBCAM:
+    helper.play_webcam(confidence, model)
+
+elif source_radio == settings.YOUTUBE:
+    helper.play_youtube_video(confidence, model)
+
+else:
+    st.error("Please select a valid source type!")
