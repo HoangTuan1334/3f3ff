@@ -1,5 +1,5 @@
 git+https://github.com/fullmakeralchemist/pytube/
-git+https://github.com/gatagat/lap@new-packaging
+git+https://github.com/gatagat/lap.git@new-packaging
 torch==2.3.0
 ultralytics==8.2.102
 streamlit==1.38.0
