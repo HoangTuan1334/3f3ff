@@ -1,6 +1,6 @@
 git==24.3.1
-pip install git+https://github.com/gatagat/lap.git@new-packaging
 git+https://github.com/fullmakeralchemist/pytube/
+git+https://github.com/gatagat/lap.git@new-packaging
 torch==2.3.0
 ultralytics==8.2.102
 streamlit==1.38.0
