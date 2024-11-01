@@ -1,4 +1,5 @@
 setuptools
+wheel
 numpy==1.25.1
 altair==5.0.1
 attrs==23.1.0
