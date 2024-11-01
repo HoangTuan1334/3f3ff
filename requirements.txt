@@ -1,7 +1,7 @@
-pip install git+https://github.com/fullmakeralchemist/pytube/
-pip install git+https://github.com/gatagat/lap.git@new-packaging
-pip install torch==2.3.0
-pip install ultralytics==8.2.102
-pip install streamlit==1.38.0
-pip install streamlit-webrtc==0.47.9
-pip install pafy==0.5.5
+git+https://github.com/fullmakeralchemist/pytube/
+torch==2.3.0
+ultralytics==8.2.102
+streamlit==1.38.0
+streamlit-webrtc==0.47.9
+pafy==0.5.5
+lap==0.4.0
