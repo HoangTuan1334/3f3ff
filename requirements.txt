@@ -1,4 +1,3 @@
-git+https://github.com/fullmakeralchemist/pytube/
 torch==2.3.0
 ultralytics==8.2.102
 streamlit==1.38.0
