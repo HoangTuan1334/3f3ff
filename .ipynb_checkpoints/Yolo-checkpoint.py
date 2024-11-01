@@ -9,90 +9,103 @@ import streamlit as st
 import settings
 import helper
 
+# Model path
 model_path = 'best.pt'
-# Setting page layout
+
+# Page configuration
 st.set_page_config(
-    page_title="Object Detection using YOLOv8",
+    page_title="Object Detection",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Main page heading
+# Page header
 st.title("Object Detection")
-st.markdown('Updload a photo, select a video, open webcam or paste a url from Youtube with this hand signals: :+1:, :hand:, :i_love_you_hand_sign:, and :spock-hand:.')
-st.markdown('Then click the Detect Objects button and check the result.')
+st.write(
+    """
+    Upload an image or paste a YouTube URL for object detection.
+    """
+)
+st.markdown("---")
 
-# Sidebar
-st.sidebar.header("ML Model Config")
+# Sidebar setup
+st.sidebar.title("🔧 Configuration")
+st.sidebar.subheader("Model Settings")
 
-# Model Options
-model_type = st.sidebar.radio(
-    "Select Task", ['Detection', 'Segmentation'])
+# Model options
+st.sidebar.markdown("### Task Type")
+model_type = st.sidebar.radio("Choose task:", ['Detection', 'Segmentation'], index=0)
 
-confidence = float(st.sidebar.slider(
-    "Select Model Confidence", 25, 100, 40)) / 100
+st.sidebar.markdown("### Confidence Level")
+confidence = st.sidebar.slider("Model Confidence Threshold", 25, 100, 40) / 100
 
-# Selecting Detection Or Segmentation
+# Model selection based on task type
 if model_type == 'Detection':
     model_path = Path(settings.DETECTION_MODEL)
 elif model_type == 'Segmentation':
     model_path = Path(settings.SEGMENTATION_MODEL)
 
-# Load Pre-trained ML Model
+# Load the model
 try:
     model = helper.load_model(model_path)
+    st.sidebar.success("✅ Model loaded successfully!")
 except Exception as ex:
-    st.error(f"Unable to load model. Check the specified path: {model_path}")
-    st.error(ex)
+    st.sidebar.error("🚫 Failed to load model")
+    st.sidebar.error(f"Error: {ex}")
 
-st.sidebar.header("Image/Video Config")
-source_radio = st.sidebar.radio(
-    "Select Source", settings.SOURCES_LIST)
+# Image/YouTube source selection
+st.sidebar.subheader("Source Configuration")
+source_radio = st.sidebar.radio("Source Type", [settings.IMAGE, settings.YOUTUBE])
 
 source_img = None
-# If image is selected
+
+# Content for the selected source type
+st.markdown("### Detection Results")
+
 if source_radio == settings.IMAGE:
-    source_img = st.sidebar.file_uploader(
-        "Choose an image...", type=("jpg", "jpeg", "png", 'bmp', 'webp'))
+    source_img = st.sidebar.file_uploader("📷 Upload an Image", type=["jpg", "jpeg", "png", "bmp", "webp"])
 
-    col1, col2 = st.columns(2)
+    if source_img:
+        # Display the uploaded image
+        st.image(source_img, caption="Uploaded Image", use_column_width=True)
+        
+        # Detection button
+# Detection button
+# Detection button
+if st.button("🚀 Detect Objects"):
+    try:
+        uploaded_image = PIL.Image.open(source_img)
+        res = model.predict(uploaded_image, conf=confidence)
+        boxes = res[0].boxes
+        res_plotted = res[0].plot()[:, :, ::-1]
+        
+        # Hiển thị hình ảnh tải lên ban đầu và hình ảnh đã nhận diện trong cùng một dòng
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.image(uploaded_image, caption="Uploaded Image", use_column_width=True)
+        
+        with col2:
+            st.image(res_plotted, caption="Detection Results", use_column_width=True)
 
-    with col1:
-        try:
-            if source_img:
-                uploaded_image = PIL.Image.open(source_img)
-                st.image(source_img, caption="Uploaded Image",
-                         use_column_width=True)
-        except Exception as ex:
-            st.error("Error occurred while opening the image.")
-            st.error(ex)
+        # Expandable section for detection details
+        with st.expander("🔍 Detection Details"):
+            if boxes:
+                for box in boxes:
+                    # Lấy thông tin về class và confidence từ thuộc tính cls và conf
+                    st.write(f"**Object Class**: {box.cls.item()}, **Confidence**: {box.conf.item():.2f}")
+            else:
+                st.write("No objects detected.")
+    except Exception as ex:
+        st.error("❗ Error processing the image.")
+        st.error(ex)
 
-    with col2:        
-            if st.sidebar.button('Detect Objects'):
-                res = model.predict(uploaded_image,
-                                    conf=confidence
-                                    )
-                boxes = res[0].boxes
-                res_plotted = res[0].plot()[:, :, ::-1]
-                st.image(res_plotted, caption='Detected Image',
-                         use_column_width=True)
-                try:
-                    with st.expander("Detection Results"):
-                        for box in boxes:
-                            st.write(box.data)
-                except Exception as ex:
-                    # st.write(ex)
-                    st.write("No image is uploaded yet!")
-
-elif source_radio == settings.VIDEO:
-    helper.play_stored_video(confidence, model)
-
-elif source_radio == settings.WEBCAM:
-    helper.play_webcam(confidence, model)
 
 elif source_radio == settings.YOUTUBE:
+    st.write("🌐 **YouTube Mode Selected**")
     helper.play_youtube_video(confidence, model)
 
 else:
-    st.error("Please select a valid source type!")
+    st.error("⚠️ Please select a valid source type!")
+
