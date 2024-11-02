@@ -26,7 +26,7 @@ DEFAULT_IMAGE = IMAGES_DIR / 'office_4.jpg'
 DEFAULT_DETECT_IMAGE = IMAGES_DIR / 'office_4_detected.jpg'
 
 # ML Model config
-DETECTION_MODEL = r"C:\Users\SHIRO\Learn\DPL\Streamlit\best.pt"
+DETECTION_MODEL = r"C:\Users\SHIRO\Desktop\SE172117\Demo\best.pt"
 SEGMENTATION_MODEL = 'yolov8n-seg.pt'
 
 # Webcam

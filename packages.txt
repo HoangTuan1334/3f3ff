@@ -1,3 +1,0 @@
-distutils
-python3-pip
-libgl1
