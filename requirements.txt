@@ -1,0 +1,15 @@
+streamlit==1.22.0
+ultralytics==8.0.98
+
+opencv-python==4.7.0.72
+# opencv-python-headless==4.7.0.72
+Pillow==9.5.0
+
+# Extras --------------------------------------
+ipython  # interactive notebook
+psutil  # system utilization
+thop>=0.1.1  # FLOPs computation
+streamlit
+# albumentations>=1.0.3
+# pycocotools>=2.0  # COCO mAP
+# roboflow
